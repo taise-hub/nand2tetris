@@ -1,0 +1,13 @@
+// if (sel == 1) out = !in
+// else out = in
+CHIP MuxInv {
+    IN 
+        in[16], // 16-bit input
+        sel; //negate the input?
+    OUT
+        out[16]; // 16-bit output
+    
+    PARTS:
+    Not16(in=in, out=nin);
+    Mux16(a=in, b=nin, sel=sel, out=out);
+}
