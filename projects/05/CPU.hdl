@@ -40,4 +40,50 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    // 15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+    //  i  1  1  a c1 c2 c3 c4 c5 c6 d1 d2 d3 j1 j2 j3
+
+    And(a=instruction[15], b=instruction[4], out=loadD);
+    // i=0またはd1=1の時loadA=1
+    Not(in=instruction[15], out=noti15);
+    Or(a=noti15, b=instruction[5], out=loadA);
+    
+    // A命令の場合, in=instruction
+    // C命令の場合, in=outALU
+    Mux16(a=instruction, b=outALU, sel=instruction[15], out=inA);
+    ARegister(in=inA, load=loadA, out=outA, out[0..14]=addressM);
+    DRegister(in=inA, load=loadD, out=outD);
+
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    Mux16(a=outA, b=inM, sel=instruction[12], out=y);
+    ALU(
+        x=outD,
+        y=y,
+        zx=instruction[11],
+        nx=instruction[10],
+        zy=instruction[9],
+        ny=instruction[8],
+        f=instruction[7],
+        no=instruction[6],
+        
+        out=outALU,
+        out=outM,
+        zr=zr,
+        ng=ng
+    );
+
+    PC(in=outA, load=loadPC, inc=true, reset=reset, out[0..14]=pc);
+
+    // judge loadPC
+    Not (in=ng, out=notng);
+    Not (in=zr, out=notzr);
+    And (a=instruction[2], b=ng, out=w1);
+    And (a=instruction[0], b=notng, out=w2);
+    Or (a=w1, b=w2, out=w3);
+    And (a=notzr, b=w3, out=w4);
+    And (a=instruction[1], b=zr, out=w5);
+    Or (a=w4, b=w5, out=w6);
+    And (a=instruction[15], b=w6, out=loadPC);
+
 }
