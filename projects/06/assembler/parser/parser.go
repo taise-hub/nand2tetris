@@ -40,12 +40,21 @@ func New(fileName string) (*Parser, error) {
 
 // 入力から次のコマンドを読み, それを現在のコマンドにする。
 // 次のコマンドがない場合, falseを返す
-func (p *Parser) advance() bool {
+func (p *Parser) Advance() bool {
 	scan := p.scanner.Scan()
-	if p.scanner.Text() == "" {
-		scan = p.scanner.Scan()
+	line := p.scanner.Text()
+	for {
+		if scan && (line == "" || strings.HasPrefix(line, "//")) {
+			scan = p.scanner.Scan()
+			line = p.scanner.Text()
+			continue
+		}
+		return scan
 	}
-	return scan
+}
+
+func (p *Parser) CommandType() CommandType {
+	return p.commandType()
 }
 
 // 現コマンドの種類を返す。
@@ -62,7 +71,7 @@ func (p *Parser) commandType() CommandType {
 
 // 現コマンド@Xxx, (Xxx)のXxxの部分を返す。
 // commandType()がA_COMMANDまたは, L_COMMANDの場合に呼ぶ。
-func (p *Parser) symbol() string {
+func (p *Parser) Symbol() string {
 	command := p.scanner.Text()
 	switch p.commandType() {
 	case A_COMMAND:
@@ -72,6 +81,26 @@ func (p *Parser) symbol() string {
 	default:
 		panic("command is not A_COMMAND OR L_COMMAND")
 	}
+}
+
+// return comp, dest, jump
+func (p *Parser) ParseC() (string, string, string) {
+	var (
+		dest = ""
+		comp = ""
+		jump = ""
+	)
+
+	command := p.scanner.Text()
+	if strings.Contains(command, "=") {
+		dest = p.dest()
+	}
+	if strings.Contains(command, ";") {
+		jump = p.jump()
+	}
+	comp = p.comp()
+
+	return comp, dest, jump
 }
 
 // 現C命令のdestニーモニックを返す。
@@ -86,7 +115,7 @@ func (p *Parser) dest() string {
 func (p *Parser) comp() string {
 	command := p.scanner.Text()
 	if strings.Contains(command, "=") {
-		command = command[strings.Index(command, "="):]
+		command = command[strings.Index(command, "=")+1:]
 	}
 	if strings.Contains(command, ";") {
 		command = command[:strings.Index(command, ";")]
@@ -98,5 +127,5 @@ func (p *Parser) comp() string {
 // commandType()がC_COMMANDの場合に呼ぶ。
 func (p *Parser) jump() string {
 	command := p.scanner.Text()
-	return command[strings.Index(command, ";"):]
+	return command[strings.Index(command, ";")+1:]
 }
