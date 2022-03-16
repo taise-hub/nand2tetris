@@ -24,7 +24,11 @@ type Scanner struct {
 }
 
 func (s *Scanner) Text() string {
-	return strings.TrimSpace(s.Scanner.Text())
+	line := strings.TrimSpace(s.Scanner.Text())
+	if strings.Contains(line, "//") {
+		line = line[:strings.Index(line, "//")]
+	}
+	return strings.TrimSpace(line)
 }
 
 func New(fileName string) (*Parser, error) {
@@ -41,16 +45,11 @@ func New(fileName string) (*Parser, error) {
 // 入力から次のコマンドを読み, それを現在のコマンドにする。
 // 次のコマンドがない場合, falseを返す
 func (p *Parser) Advance() bool {
-	scan := p.scanner.Scan()
-	line := p.scanner.Text()
-	for {
-		if scan && (line == "" || strings.HasPrefix(line, "//")) {
-			scan = p.scanner.Scan()
-			line = p.scanner.Text()
-			continue
-		}
-		return scan
+	b := p.scanner.Scan()
+	if b && p.scanner.Text() == "" {
+		b = p.Advance()
 	}
+	return b
 }
 
 func (p *Parser) CommandType() CommandType {
@@ -62,7 +61,7 @@ func (p *Parser) commandType() CommandType {
 	switch {
 	case strings.HasPrefix(p.scanner.Text(), "@"):
 		return A_COMMAND
-	case strings.HasPrefix(p.scanner.Text(), "(") && strings.HasPrefix(p.scanner.Text(), ")"):
+	case strings.HasPrefix(p.scanner.Text(), "(") && strings.HasSuffix(p.scanner.Text(), ")"):
 		return L_COMMAND
 	default:
 		return C_COMMAND
