@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"strings"
 )
@@ -86,12 +87,18 @@ func (p *Parser) commandType() int {
 // 現コマンドの最初の引数を返す。
 // C_ARITHMETICの場合, コマンド自体を返す。
 // C_RETURNの場合, 本ルーチンは呼ばない。
-func (p *Parser) Arg1() string {
-	return strings.Split(p.scanner.Text(), " ")[1]
+func (p *Parser) Arg1() (string, error) {
+	if len(strings.Split(p.scanner.Text(), " ")) < 1 {
+		return "", errors.New("invalid command type at Arg1()")
+	}
+	return strings.Split(p.scanner.Text(), " ")[1], nil
 }
 
 //現コマンドの2番目の引数を返す。
 // C_PUSH, C_POP, C_FUNCTION, C_CALLの場合のみ本ルーチンを呼ぶ。
-func (p *Parser) Arg2() string {
-	return strings.Split(p.scanner.Text(), " ")[2]
+func (p *Parser) Arg2() (string, error) {
+	if len(strings.Split(p.scanner.Text(), " ")) < 2 {
+		return "", errors.New("invalid command type at Arg2()")
+	}
+	return strings.Split(p.scanner.Text(), " ")[2], nil
 }
