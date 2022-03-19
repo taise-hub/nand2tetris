@@ -2,6 +2,7 @@ package codewriter
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -26,7 +27,7 @@ func (cw *CodeWriter) WriteArithmetic(cmd string) {
 	case "neg", "not":
 		cw.writeUnaryArithmetic(cmd)
 	default:
-		panic("invalid command found at WriteArithmetic()")
+		log.Fatal("invalid command found at WriteArithmetic()")
 	}
 }
 
@@ -80,34 +81,80 @@ func (cw *CodeWriter) WriteLogic(cmd string) {
 	cw.file.WriteString("D=M\n")
 	cw.writePop()
 	cw.file.WriteString("D=D-M\n")
-	cw.file.WriteString(fmt.Sprintf("@TRUE_%d\n", cw.labelCount))
-	cw.file.WriteString(fmt.Sprintf("D;%s\n", asm))
-	cw.file.WriteString(fmt.Sprintf("@NEXT_%d", cw.labelCount))
-	cw.file.WriteString("D=0\nJMP;0\n")
-	cw.file.WriteString(fmt.Sprintf("(TRUE_%d)\nD=-1", cw.labelCount))
-	cw.file.WriteString(fmt.Sprintf("(NEXT_%d)\n", cw.labelCount))
-
+	cw.file.WriteString(fmt.Sprintf("@TRUE_%d\nD;%s\n@NEXT_%d\nD=0\nJMP;0\n(TRUE_%d)\nD=-1\n(NEXT_%d)\n",
+		cw.labelCount, asm, cw.labelCount, cw.labelCount, cw.labelCount))
 	cw.labelCount++
 }
 
-// C_PUSHまたはC_POPコマンドをアセンブリコードに変換し、それを書き込む
-func (cw *CodeWriter) WritePushPop(command string, segment string, index int) {
-	panic("implement me")
+func (cw *CodeWriter) WritePushPop(cmd string, segment string, index int) {
+	switch cmd {
+	case "push":
+		cw.WritePush(segment, index)
+	case "pop":
+		cw.WritePopToMemory(segment, index)
+	}
 }
 
-// popした値はMに格納される
+// VMのpush命令をHackアセンブラに変換する
+func (cw *CodeWriter) WritePush(segment string, index int) {
+	switch segment {
+	case "constant":
+		cw.file.WriteString(fmt.Sprintf("@%d\nD=A\n", index))
+	case "local":
+		cw.file.WriteString(fmt.Sprintf("@LCL\nD=M\n@%d\nA=D+A\nD=M\n", index))
+	case "argument":
+		cw.file.WriteString(fmt.Sprintf("@ARG\nD=M\n@%d\nA=D+A\nD=M\n", index))
+	case "this":
+		cw.file.WriteString(fmt.Sprintf("@THIS\nD=M\n@%d\nA=D+A\nD=M\n", index))
+	case "that":
+		cw.file.WriteString(fmt.Sprintf("@THAT\nD=M\n@%d\nA=D+A\nD=M\n", index))
+	case "pointer":
+		cw.file.WriteString(fmt.Sprintf("@R3\nD=A\n@%d\nD=D+A\n", index))
+	case "temp":
+		cw.file.WriteString(fmt.Sprintf("@R5\nD=A\n@%d\nD=D+A\n", index))
+	case "static":
+		cw.file.WriteString(fmt.Sprintf("@%s.%d\nD=M\n", cw.file.Name(), index))
+	}
+
+	cw.file.WriteString("@SP\nA=M\nM=D\n@SP\nM=M+1")
+}
+
+// VMのpop命令をHackアセンブラに変換する
+func (cw *CodeWriter) WritePopToMemory(segment string, index int) {
+	switch segment {
+	case "local":
+		cw.file.WriteString(fmt.Sprintf("@LCL\nD=M\n@%d\nD=D+A\n", index))
+	case "argument":
+		cw.file.WriteString(fmt.Sprintf("@ARG\nD=M\n@%d\nD=D+A\n", index))
+	case "this":
+		cw.file.WriteString(fmt.Sprintf("@THIS\nD=M\n@%d\nD=D+A\n", index))
+	case "that":
+		cw.file.WriteString(fmt.Sprintf("@THAT\nD=M\n@%d\nD=D+A\n", index))
+	case "pointer":
+		cw.file.WriteString(fmt.Sprintf("@R3\nD=A\n@%d\nD=D+A\n", index))
+	case "temp":
+		cw.file.WriteString(fmt.Sprintf("@R5\nD=A\n@%d\nD=D+A\n", index))
+	case "static":
+		cw.file.WriteString(fmt.Sprintf("@%s.%d\nD=A\n", cw.file.Name(), index))
+	}
+
+	cw.file.WriteString("@R13\nM=D\n")
+	cw.writePop()
+	cw.file.WriteString("D=M\n@R13\nA=M\nM=D\n")
+}
+
 func (cw *CodeWriter) writePop() {
-	cw.file.WriteString("@SP\nM=M-1\n")
-	// cw.file.WriteString("@SP\nM=M-1\nA=M\n")
+	cw.file.WriteString("@SP\nAM=M-1\n")
 }
 
-// 出力ファイルを閉じる
+// 出力用ファイルを閉じる
 func (cw *CodeWriter) Close() {
 	cw.file.Close()
 }
 
-// func (cw *CodeWriter) newLabel() string {
-// 	label := fmt.Sprintf("LABEL_%d", cw.labelCount)
-// 	cw.labelCount++
-// 	return label
-// }
+// 新たなラベルを生成する
+func (cw *CodeWriter) newLabel() string {
+	label := fmt.Sprintf("LABEL_%d", cw.labelCount)
+	cw.labelCount++
+	return label
+}
