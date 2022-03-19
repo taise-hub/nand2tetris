@@ -151,10 +151,3 @@ func (cw *CodeWriter) writePop() {
 func (cw *CodeWriter) Close() {
 	cw.file.Close()
 }
-
-// 新たなラベルを生成する
-func (cw *CodeWriter) newLabel() string {
-	label := fmt.Sprintf("LABEL_%d", cw.labelCount)
-	cw.labelCount++
-	return label
-}
